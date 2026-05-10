@@ -1,0 +1,266 @@
+# AV Cyber-Physical Security System
+## Complete Hardware + Software Documentation
+
+---
+
+## 🔌 HARDWARE CONNECTIONS
+
+### Components Needed:
+| Component | Quantity | Price (approx) |
+|-----------|----------|----------------|
+| ESP32 DevKit V1 | 1 | ₹400 |
+| L298N Motor Driver | 1 | ₹120 |
+| DC Motors with wheels | 2 | ₹200 |
+| HC-SR04 Ultrasonic | 2 | ₹80 (×2) |
+| Chassis (car body) | 1 | ₹150 |
+| Green LED | 1 | ₹5 |
+| Red LED | 1 | ₹5 |
+| Yellow LED | 1 | ₹5 |
+| Buzzer (active) | 1 | ₹20 |
+| 220Ω Resistors | 3 | ₹5 |
+| 9V Battery + clip | 1 | ₹50 |
+| Jumper wires | 1 set | ₹50 |
+| **TOTAL** | | **≈ ₹1170** |
+
+---
+
+## 🔌 WIRING DIAGRAM
+
+```
+ESP32          L298N Motor Driver
+─────          ─────────────────
+GPIO 27  ───► IN1   (Left Motor Forward)
+GPIO 26  ───► IN2   (Left Motor Backward)
+GPIO 25  ───► IN3   (Right Motor Forward)
+GPIO 33  ───► IN4   (Right Motor Backward)
+GPIO 14  ───► ENA   (Left Motor Speed PWM)
+GPIO 12  ───► ENB   (Right Motor Speed PWM)
+GND      ───► GND
+           OUT1/OUT2 ───► Left Motor
+           OUT3/OUT4 ───► Right Motor
+           12V ───► 9V Battery+
+
+ESP32          HC-SR04 FRONT
+─────          ─────────────
+GPIO  5  ───► TRIG
+GPIO 18  ◄─── ECHO
+3.3V     ───► VCC
+GND      ───► GND
+
+ESP32          HC-SR04 REAR
+─────          ────────────
+GPIO 19  ───► TRIG
+GPIO 21  ◄─── ECHO
+3.3V     ───► VCC
+GND      ───► GND
+
+ESP32          LEDs + BUZZER
+─────          ─────────────
+GPIO 32  ───► [220Ω] ───► Green LED ───► GND
+GPIO 35  ───► [220Ω] ───► Red LED   ───► GND
+GPIO 34  ───► [220Ω] ───► Yellow LED───► GND
+GPIO 13  ───► Buzzer (+) ───► GND
+```
+
+---
+
+## 🏗️ SYSTEM ARCHITECTURE
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    ATTACK SOURCES                        │
+│  Mobile App │ Web Dashboard │ Malicious Script           │
+└─────────────────────┬───────────────────────────────────┘
+                      │ HTTP commands (WiFi)
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│              FLASK BRIDGE (esp32_bridge.py)              │
+│  • Token Authentication                                  │
+│  • Rate Limiting                                         │
+│  • Kafka Publishing (encrypted with AES-256)            │
+└─────────────────────┬───────────────────────────────────┘
+                      │ HTTP forward
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│              ESP32 SECURITY VALIDATOR                    │
+│  Check 1: Command Whitelist Validation                  │
+│  Check 2: Replay Attack Detection (5s window)           │
+│  Check 3: Speed Range Validation (0-200)                │
+│  Check 4: Obstacle Safety (HC-SR04 sensors)             │
+│  Check 5: Behavioral Anomaly Detection (ML rules)       │
+└──────────┬──────────────────────────────┬───────────────┘
+           │ PASS                         │ FAIL
+           ▼                              ▼
+┌──────────────────┐           ┌──────────────────────────┐
+│  EXECUTE COMMAND │           │  BLOCK + LOG ATTACK      │
+│  Motor Driver    │           │  Red LED ON              │
+│  Green LED ON    │           │  Buzzer Beeps            │
+│  Move AV         │           │  security_audit table    │
+└──────────────────┘           └──────────────────────────┘
+           │                              │
+           └──────────────┬───────────────┘
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│              KAFKA → POSTGRESQL → DASHBOARD             │
+│  • All events encrypted with AES-256 before Kafka       │
+│  • Consumer decrypts and stores in PostgreSQL           │
+│  • Live dashboard shows real-time security alerts       │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔐 5-LAYER SECURITY CHECKS
+
+### Layer 1: Command Whitelist
+```
+Valid: FORWARD, BACKWARD, LEFT, RIGHT, STOP, STATUS
+Invalid: HACK, DELETE, EXECUTE, <any other>
+Result if invalid: BLOCKED → INVALID_COMMAND logged
+```
+
+### Layer 2: Replay Attack Detection
+```
+Algorithm:
+  hash = SHA(command + time_bucket)
+  if hash == last_hash AND time < 5s:
+    BLOCK → REPLAY_ATTACK logged
+  else:
+    update last_hash, proceed
+
+Example:
+  t=0s: FORWARD hash=ABC → stored
+  t=2s: FORWARD hash=ABC → REPLAY! BLOCKED
+  t=6s: FORWARD hash=XYZ → new bucket → ALLOWED
+```
+
+### Layer 3: Speed Validation
+```
+Valid range: 0 ≤ speed ≤ 200
+Attack: speed = 9999 → BLOCKED
+Attack: speed = -50  → BLOCKED
+Result: SPEED_OUT_OF_RANGE logged
+```
+
+### Layer 4: Obstacle Safety
+```
+Front sensor reads: 15cm (< 20cm threshold)
+Command received: FORWARD
+ESP32 blocks: "Cannot move forward — obstacle at 15cm"
+Result: UNSAFE_COMMAND logged, vehicle stays stopped
+```
+
+### Layer 5: Behavioral Anomaly Detection
+```
+Algorithm monitors last 10 commands:
+  direction_changes = count(cmd[i] != cmd[i-1])
+
+Normal:   FORWARD FORWARD FORWARD → 0 changes → OK
+Attack:   F→L→R→B→L→F→R→B→L→R → 9 changes → BLOCKED
+
+Also checks frequency:
+  If >10 commands in 1 second → FREQUENCY_ATTACK
+```
+
+---
+
+## 🚨 ATTACK SCENARIOS & RESPONSES
+
+### Scenario 1: Invalid Command Attack
+```
+Hacker sends: {"command": "HACK_SYSTEM", "speed": 150}
+ESP32 checks whitelist → NOT FOUND
+Response: 403 BLOCKED — INVALID_COMMAND
+Red LED flashes, buzzer beeps 2x
+Logged: security_audit table
+```
+
+### Scenario 2: Replay Attack
+```
+Hacker captures: {"command": "FORWARD", "timestamp": 1000}
+Hacker resends same packet 3 seconds later
+ESP32: timestamp bucket matches → REPLAY DETECTED
+Response: 403 BLOCKED — REPLAY_ATTACK
+```
+
+### Scenario 3: Speed Overflow
+```
+Hacker sends: {"command": "FORWARD", "speed": 9999}
+ESP32: 9999 > 200 MAX_SPEED → BLOCKED
+Response: 403 BLOCKED — SPEED_OUT_OF_RANGE
+Vehicle does not accelerate dangerously
+```
+
+### Scenario 4: Obstacle Bypass Attempt
+```
+Obstacle at 10cm in front
+Hacker sends: {"command": "FORWARD"}
+ESP32: sensor reads 10cm < 20cm threshold → BLOCKED
+Response: 403 BLOCKED — OBSTACLE_DETECTED (10cm)
+Prevents collision
+```
+
+### Scenario 5: Behavioral Pattern Attack
+```
+Hacker sends 10 rapid direction changes in 2 seconds:
+F→L→R→B→L→R→F→B→L→R
+ESP32 counts: 9 direction changes ≥ 5 threshold
+Response: 403 BLOCKED — BEHAVIORAL_ATTACK
+Red LED ON, buzzer 3 beeps, vehicle stops
+```
+
+---
+
+## 🚀 HOW TO RUN
+
+### Step 1: Hardware Setup
+1. Connect all components per wiring diagram above
+2. Install Arduino IDE
+3. Install libraries: ArduinoJson, ESP32 board
+4. Update WiFi credentials in .ino file
+5. Upload to ESP32
+6. Note the IP address from Serial Monitor
+
+### Step 2: Update Bridge
+```bash
+# Set ESP32 IP in .env
+ESP32_IP=192.168.1.XXX  # IP from Serial Monitor
+```
+
+### Step 3: Start Software
+```bash
+# Terminal 1: Start bridge
+python esp32_bridge.py
+
+# Terminal 2: Start Kafka consumer
+python consumer.py
+
+# Terminal 3: Start producer (optional)
+python producer.py
+```
+
+### Step 4: Open Dashboard
+- Open `av_control_dashboard.html` in Chrome
+- Use D-pad to control vehicle
+- Use Attack Simulator to demo security
+- Watch live event log on right panel
+
+---
+
+## 📊 WHAT JUDGES WILL SEE
+
+1. **Physical AV** moving on command
+2. **Obstacle detection** — auto stops when too close
+3. **Live attack simulation** — click button, see rejection
+4. **Real-time event log** — every attack logged instantly
+5. **Behavioral AI** — detects pattern attacks
+6. **Kafka + PostgreSQL** — all events encrypted and stored
+7. **Beautiful dashboard** — professional command center
+
+---
+
+## 💬 PITCH FOR JUDGES
+
+*"This is a complete cyber-physical security system for autonomous vehicles. The ESP32 acts as the vehicle's onboard computer. It implements 5 layers of security — command validation, replay attack detection, speed limiting, obstacle safety, and AI-based behavioral anomaly detection.*
+
+*Watch — I'll send a normal command... the vehicle moves. Now I'll simulate a behavioral attack... system detects the pattern and blocks it immediately. The red LED turns on, buzzer alerts, and the attack is logged in our PostgreSQL database in real time."*

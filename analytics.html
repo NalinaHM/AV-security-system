@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AV Security — Analytics & ML Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:    #020810;
+  --panel: #060f1e;
+  --card:  #0a1628;
+  --border:#0d2040;
+  --teal:  #00e5cc;
+  --blue:  #0088ff;
+  --red:   #ff2d55;
+  --yellow:#ffd60a;
+  --green: #30d158;
+  --orange:#ff9500;
+  --white: #e8f4f8;
+  --gray:  #4a6580;
+  --font-hd:   'Orbitron', monospace;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-body: 'Exo 2', sans-serif;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,204,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,204,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none; z-index:0;
+}
+
+/* HEADER */
+header {
+  position:relative; z-index:10;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 0 2rem; height:64px;
+  background: linear-gradient(90deg, #020810, #060f1e, #020810);
+  border-bottom: 1px solid var(--teal);
+  box-shadow: 0 0 30px rgba(0,229,204,0.2);
+}
+
+.logo { display:flex; align-items:center; gap:12px; }
+.logo-icon {
+  width:36px; height:36px; border:2px solid var(--teal);
+  border-radius:8px; display:flex; align-items:center;
+  justify-content:center; font-size:18px;
+  box-shadow: 0 0 12px rgba(0,229,204,0.4);
+  animation: pglow 2s ease-in-out infinite;
+}
+@keyframes pglow {
+  0%,100%{ box-shadow:0 0 12px rgba(0,229,204,0.4); }
+  50%    { box-shadow:0 0 24px rgba(0,229,204,0.8); }
+}
+.logo-text { font-family:var(--font-hd); font-size:13px; color:var(--teal); letter-spacing:3px; }
+.logo-sub  { font-size:9px; color:var(--gray); letter-spacing:2px; }
+
+.nav-links { display:flex; gap:1rem; }
+.nav-link {
+  padding:6px 16px; border-radius:20px;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:1px;
+  text-decoration:none; transition:all 0.2s;
+  border:1px solid var(--border); color:var(--gray);
+}
+.nav-link:hover, .nav-link.active {
+  border-color:var(--teal); color:var(--teal);
+  background:rgba(0,229,204,0.05);
+}
+
+#clock { font-family:var(--font-mono); font-size:13px; color:var(--teal); letter-spacing:2px; }
+
+/* MAIN */
+main {
+  position:relative; z-index:1;
+  padding:1.5rem 2rem;
+  display:grid; gap:1.2rem;
+}
+
+/* SECTION TITLE */
+.section-title {
+  font-family:var(--font-hd); font-size:11px;
+  color:var(--teal); letter-spacing:3px;
+  margin-bottom:1rem;
+  display:flex; align-items:center; gap:10px;
+}
+.section-title::after {
+  content:''; flex:1; height:1px; background:var(--border);
+}
+
+/* STAT CARDS */
+.stats-row {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1rem;
+}
+.stat-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:1.2rem; position:relative; overflow:hidden;
+  transition:transform 0.2s;
+}
+.stat-card::before {
+  content:''; position:absolute; top:0; left:0; right:0;
+  height:2px; background:var(--accent,var(--teal));
+  box-shadow:0 0 10px var(--accent,var(--teal));
+}
+.stat-card:hover { transform:translateY(-2px); }
+.stat-label { font-family:var(--font-mono); font-size:9px; letter-spacing:2px; color:var(--gray); margin-bottom:8px; }
+.stat-value { font-family:var(--font-hd); font-size:28px; font-weight:900; color:var(--accent,var(--teal)); text-shadow:0 0 20px var(--accent,var(--teal)); }
+.stat-sub   { font-size:10px; color:var(--gray); margin-top:4px; font-family:var(--font-mono); }
+
+/* CHARTS GRID */
+.charts-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; }
+.charts-row-2 { display:grid; grid-template-columns:1.5fr 1fr; gap:1rem; }
+
+/* PANEL */
+.panel {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden;
+}
+.panel-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.9rem 1.2rem; border-bottom:1px solid var(--border);
+  background:rgba(0,229,204,0.03);
+}
+.panel-title { font-family:var(--font-mono); font-size:11px; letter-spacing:2px; color:var(--teal); }
+.panel-badge {
+  font-family:var(--font-mono); font-size:9px; padding:2px 8px;
+  border-radius:10px; background:rgba(0,229,204,0.1);
+  color:var(--teal); border:1px solid rgba(0,229,204,0.3);
+}
+.panel-body { padding:1.2rem; }
+
+canvas { max-height:250px; }
+
+/* ANOMALY TABLE */
+.anomaly-table-wrap { overflow-x:auto; max-height:300px; overflow-y:auto; }
+table { width:100%; border-collapse:collapse; }
+thead th {
+  position:sticky; top:0; background:var(--panel);
+  padding:10px 14px; text-align:left;
+  font-family:var(--font-mono); font-size:9px; letter-spacing:2px;
+  color:var(--teal); border-bottom:1px solid var(--border); white-space:nowrap;
+}
+tbody tr { border-bottom:1px solid rgba(13,32,64,0.5); transition:background 0.15s; animation:row-in 0.3s ease; }
+@keyframes row-in { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }
+tbody tr:hover { background:rgba(0,229,204,0.04); }
+td { padding:9px 14px; font-family:var(--font-mono); font-size:10px; white-space:nowrap; color:var(--white); }
+
+.risk-badge { padding:2px 8px; border-radius:10px; font-size:9px; font-weight:600; letter-spacing:1px; }
+.risk-CRITICAL { background:rgba(255,45,85,0.2); color:#ff2d55; border:1px solid rgba(255,45,85,0.4); }
+.risk-HIGH     { background:rgba(255,149,0,0.2); color:#ff9500; border:1px solid rgba(255,149,0,0.4); }
+.risk-MEDIUM   { background:rgba(255,214,10,0.15); color:#ffd60a; border:1px solid rgba(255,214,10,0.3); }
+
+/* RUN ML BUTTON */
+.ml-btn {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 24px; background:rgba(0,229,204,0.1);
+  border:1px solid var(--teal); border-radius:8px;
+  color:var(--teal); font-family:var(--font-mono); font-size:11px;
+  letter-spacing:2px; cursor:pointer; transition:all 0.2s;
+}
+.ml-btn:hover { background:rgba(0,229,204,0.2); box-shadow:0 0 20px rgba(0,229,204,0.3); }
+
+/* STATUS BAR */
+.status-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.7rem 1.2rem; background:var(--panel);
+  border:1px solid var(--border); border-radius:10px;
+  font-family:var(--font-mono); font-size:10px; color:var(--gray);
+}
+.status-item { display:flex; align-items:center; gap:6px; }
+.status-dot { width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); }
+
+.loading { text-align:center; padding:2rem; color:var(--gray); font-family:var(--font-mono); font-size:11px; }
+.no-data { text-align:center; padding:2rem; color:var(--teal); font-family:var(--font-mono); font-size:11px; }
+
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:var(--panel); }
+::-webkit-scrollbar-thumb { background:#00b8a0; border-radius:2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🤖</div>
+    <div>
+      <div class="logo-text">AV ANALYTICS</div>
+      <div class="logo-sub">ML ANOMALY DETECTION</div>
+    </div>
+  </div>
+  <div class="nav-links">
+    <a href="dashboard.html" class="nav-link">📡 Live Dashboard</a>
+    <a href="analytics.html" class="nav-link active">🤖 Analytics & ML</a>
+  </div>
+  <div id="clock">--:--:--</div>
+</header>
+
+<main>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card" style="--accent:var(--red)">
+      <div class="stat-label">ML ANOMALIES</div>
+      <div class="stat-value" id="stat-anomalies">--</div>
+      <div class="stat-sub">detected by AI</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--orange)">
+      <div class="stat-label">CRITICAL RISK</div>
+      <div class="stat-value" id="stat-critical-risk">--</div>
+      <div class="stat-sub">immediate threat</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--yellow)">
+      <div class="stat-label">HIGH RISK</div>
+      <div class="stat-value" id="stat-high-risk">--</div>
+      <div class="stat-sub">needs attention</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--teal)">
+      <div class="stat-label">TOTAL EVENTS</div>
+      <div class="stat-value" id="stat-total">--</div>
+      <div class="stat-sub">encrypted & stored</div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 1 -->
+  <div class="section-title">📊 ATTACK VISUALIZATION CHARTS</div>
+  <div class="charts-row">
+
+    <!-- Severity Pie -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">SEVERITY DISTRIBUTION</span>
+        <span class="panel-badge">PIE CHART</span>
+      </div>
+      <div class="panel-body">
+        <canvas id="severityChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Event Types Bar -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">EVENT TYPES</span>
+        <span class="panel-badge">BAR CHART</span>
+      </div>
+      <div class="panel-body">
+        <canvas id="eventTypesChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Speed Distribution -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">SPEED DISTRIBUTION</span>
+        <span class="panel-badge">HISTOGRAM</span>
+      </div>
+      <div class="panel-body">
+        <canvas id="speedChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHARTS ROW 2 -->
+  <div class="charts-row-2">
+
+    <!-- Vehicle Activity Bar -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">VEHICLE EVENT ACTIVITY</span>
+        <span class="panel-badge">ALL VEHICLES</span>
+      </div>
+      <div class="panel-body">
+        <canvas id="vehicleChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Risk Level Doughnut -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">ML RISK LEVELS</span>
+        <span class="panel-badge">ANOMALIES</span>
+      </div>
+      <div class="panel-body">
+        <canvas id="riskChart"></canvas>
+        <div id="no-ml-msg" class="no-data" style="display:none">
+          Run anomaly_detection.py first!<br><br>
+          <code style="color:var(--teal)">python anomaly_detection.py</code>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ML ANOMALY TABLE -->
+  <div class="section-title">🤖 ML ANOMALY DETECTION RESULTS</div>
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">🔴 DETECTED ANOMALIES — ISOLATION FOREST + RULE-BASED</span>
+      <span class="panel-badge" id="anomaly-count">0 anomalies</span>
+    </div>
+    <div class="anomaly-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>VEHICLE ID</th>
+            <th>EVENT TYPE</th>
+            <th>SEVERITY</th>
+            <th>SPEED (km/h)</th>
+            <th>RISK LEVEL</th>
+            <th>ANOMALY SCORE</th>
+            <th>DETECTED AT</th>
+          </tr>
+        </thead>
+        <tbody id="anomaly-tbody">
+          <tr><td colspan="7" class="loading">Run anomaly_detection.py to see ML results...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="status-bar">
+    <div class="status-item"><div class="status-dot"></div><span>ISOLATION FOREST MODEL: READY</span></div>
+    <div class="status-item"><div class="status-dot"></div><span>RULE-BASED DETECTION: ACTIVE</span></div>
+    <div class="status-item"><div class="status-dot"></div><span>API: CONNECTED</span></div>
+    <div class="status-item"><span id="last-updated">--</span></div>
+  </div>
+
+</main>
+
+<script>
+const API = 'http://localhost:5000/api';
+
+// Clock
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
+}, 1000);
+
+// Chart defaults
+Chart.defaults.color = '#4a6580';
+Chart.defaults.borderColor = '#0d2040';
+Chart.defaults.font.family = "'Share Tech Mono', monospace";
+
+const COLORS = {
+  CRITICAL: '#ff2d55', HIGH: '#ff9500',
+  MEDIUM:   '#ffd60a', LOW: '#30d158',
+  teal: '#00e5cc', blue: '#0088ff',
+};
+
+let charts = {};
+
+function makeChart(id, config) {
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if (!ctx) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(ctx, config);
+}
+
+// ── Load Stats & Charts ────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const res  = await fetch(`${API}/stats`);
+    const data = await res.json();
+    if (data.status !== 'ok') return;
+
+    document.getElementById('stat-total').textContent = data.total_events;
+
+    // Severity Pie Chart
+    const sevData = data.severity || {};
+    makeChart('severityChart', {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(sevData),
+        datasets: [{
+          data: Object.values(sevData),
+          backgroundColor: Object.keys(sevData).map(k => COLORS[k] || '#666'),
+          borderWidth: 2,
+          borderColor: '#0a1628',
+          hoverOffset: 8,
+        }]
+      },
+      options: {
+        plugins: { legend: { position:'bottom', labels:{ color:'#b0c4d8', padding:12 } } },
+        cutout: '65%',
+      }
+    });
+
+    // Event Types Bar Chart
+    const etData = data.event_types || [];
+    makeChart('eventTypesChart', {
+      type: 'bar',
+      data: {
+        labels: etData.map(e => e.event_type.replace('_',' ')),
+        datasets: [{
+          label: 'Events',
+          data: etData.map(e => e.count),
+          backgroundColor: etData.map((_, i) =>
+            `hsla(${170 + i*20}, 80%, 55%, 0.7)`),
+          borderColor: etData.map((_, i) =>
+            `hsl(${170 + i*20}, 80%, 55%)`),
+          borderWidth: 1, borderRadius: 4,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        plugins: { legend: { display:false } },
+        scales: {
+          x: { grid:{ color:'#0d2040' }, ticks:{ color:'#4a6580' } },
+          y: { grid:{ display:false }, ticks:{ color:'#b0c4d8', font:{size:9} } },
+        }
+      }
+    });
+
+    // Vehicle Bar Chart
+    const vData = data.vehicles || [];
+    makeChart('vehicleChart', {
+      type: 'bar',
+      data: {
+        labels: vData.map(v => v.vehicle_id),
+        datasets: [{
+          label: 'Events',
+          data: vData.map(v => v.count),
+          backgroundColor: 'rgba(0,229,204,0.3)',
+          borderColor: '#00e5cc',
+          borderWidth: 1, borderRadius: 4,
+        }]
+      },
+      options: {
+        plugins: { legend:{display:false} },
+        scales: {
+          x: { grid:{color:'#0d2040'}, ticks:{color:'#b0c4d8'} },
+          y: { grid:{color:'#0d2040'}, ticks:{color:'#4a6580'} },
+        }
+      }
+    });
+
+  } catch(e) { console.error('Stats error:', e); }
+}
+
+// ── Speed Distribution ─────────────────────────────────────────────────────
+async function loadSpeedDist() {
+  try {
+    const res  = await fetch(`${API}/speed-distribution`);
+    const data = await res.json();
+    if (data.status !== 'ok') return;
+
+    const dist = data.distribution || [];
+    makeChart('speedChart', {
+      type: 'bar',
+      data: {
+        labels: dist.map(d => d.range + ' km/h'),
+        datasets: [{
+          label: 'Events',
+          data: dist.map(d => d.count),
+          backgroundColor: dist.map(d => {
+            const r = d.range;
+            if (r === '120+') return 'rgba(255,45,85,0.7)';
+            if (r === '100-120') return 'rgba(255,149,0,0.7)';
+            return 'rgba(0,136,255,0.5)';
+          }),
+          borderColor: dist.map(d => {
+            if (d.range === '120+') return '#ff2d55';
+            if (d.range === '100-120') return '#ff9500';
+            return '#0088ff';
+          }),
+          borderWidth: 1, borderRadius: 4,
+        }]
+      },
+      options: {
+        plugins: { legend:{display:false} },
+        scales: {
+          x: { grid:{display:false}, ticks:{color:'#b0c4d8', font:{size:9}} },
+          y: { grid:{color:'#0d2040'}, ticks:{color:'#4a6580'} },
+        }
+      }
+    });
+  } catch(e) { console.error('Speed dist error:', e); }
+}
+
+// ── ML Anomalies ───────────────────────────────────────────────────────────
+async function loadAnomalies() {
+  try {
+    const res  = await fetch(`${API}/anomalies`);
+    const data = await res.json();
+    if (data.status !== 'ok') return;
+
+    const anomalies = data.anomalies || [];
+    const riskCounts = data.risk_counts || {};
+
+    document.getElementById('stat-anomalies').textContent = data.total || 0;
+    document.getElementById('stat-critical-risk').textContent = riskCounts.CRITICAL || 0;
+    document.getElementById('stat-high-risk').textContent = riskCounts.HIGH || 0;
+    document.getElementById('anomaly-count').textContent = `${data.total || 0} anomalies`;
+
+    // Risk Doughnut
+    if (Object.keys(riskCounts).length > 0) {
+      document.getElementById('no-ml-msg').style.display = 'none';
+      makeChart('riskChart', {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(riskCounts),
+          datasets: [{
+            data: Object.values(riskCounts),
+            backgroundColor: Object.keys(riskCounts).map(k =>
+              k==='CRITICAL'?'rgba(255,45,85,0.7)':
+              k==='HIGH'?'rgba(255,149,0,0.7)':'rgba(255,214,10,0.7)'),
+            borderWidth: 2, borderColor: '#0a1628', hoverOffset: 6,
+          }]
+        },
+        options: {
+          plugins: { legend:{position:'bottom', labels:{color:'#b0c4d8',padding:10}} },
+          cutout: '60%',
+        }
+      });
+    } else {
+      document.getElementById('no-ml-msg').style.display = 'block';
+    }
+
+    // Anomaly table
+    if (anomalies.length === 0) {
+      document.getElementById('anomaly-tbody').innerHTML =
+        `<tr><td colspan="7" class="no-data">No anomalies detected yet. Run: python anomaly_detection.py</td></tr>`;
+      return;
+    }
+
+    document.getElementById('anomaly-tbody').innerHTML = anomalies.map(a => `
+      <tr>
+        <td style="color:var(--teal)">${a.vehicle_id}</td>
+        <td>${a.event_type}</td>
+        <td>${a.severity}</td>
+        <td style="color:var(--blue)">${a.speed_kmh ? a.speed_kmh.toFixed(1) : '--'}</td>
+        <td><span class="risk-badge risk-${a.risk_level}">${a.risk_level}</span></td>
+        <td style="color:var(--gray)">${a.anomaly_score ? a.anomaly_score.toFixed(3) : 'rule-based'}</td>
+        <td style="color:var(--gray)">${a.detected_at ? new Date(a.detected_at).toLocaleTimeString() : '--'}</td>
+      </tr>
+    `).join('');
+
+    document.getElementById('last-updated').textContent =
+      `Last updated: ${new Date().toLocaleTimeString()}`;
+
+  } catch(e) { console.error('Anomaly error:', e); }
+}
+
+// ── Refresh every 5 seconds ────────────────────────────────────────────────
+async function refresh() {
+  await Promise.all([loadStats(), loadSpeedDist(), loadAnomalies()]);
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

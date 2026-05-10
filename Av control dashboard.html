@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AV Cyber Security — Control & Attack Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:    #020810;
+  --panel: #060f1e;
+  --card:  #0a1628;
+  --border:#0d2040;
+  --teal:  #00e5cc;
+  --blue:  #0088ff;
+  --red:   #ff2d55;
+  --yellow:#ffd60a;
+  --green: #30d158;
+  --orange:#ff9500;
+  --white: #e8f4f8;
+  --gray:  #4a6580;
+  --hd:    'Orbitron', monospace;
+  --mono:  'Share Tech Mono', monospace;
+  --body:  'Exo 2', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:var(--bg); color:var(--white);
+  font-family:var(--body); min-height:100vh;
+}
+body::before {
+  content:''; position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,204,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,204,0.03) 1px, transparent 1px);
+  background-size:40px 40px; pointer-events:none; z-index:0;
+}
+
+/* HEADER */
+header {
+  position:relative; z-index:10;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 2rem; height:60px;
+  background:linear-gradient(90deg,#020810,#060f1e,#020810);
+  border-bottom:1px solid var(--teal);
+  box-shadow:0 0 30px rgba(0,229,204,0.2);
+}
+.logo { display:flex; align-items:center; gap:10px; }
+.logo-icon {
+  width:34px; height:34px; border:2px solid var(--teal);
+  border-radius:8px; display:flex; align-items:center;
+  justify-content:center; font-size:16px;
+  animation:glow 2s ease-in-out infinite;
+}
+@keyframes glow { 0%,100%{box-shadow:0 0 10px rgba(0,229,204,0.4)} 50%{box-shadow:0 0 22px rgba(0,229,204,0.9)} }
+.logo-text { font-family:var(--hd); font-size:12px; color:var(--teal); letter-spacing:3px; }
+.logo-sub  { font-size:8px; color:var(--gray); letter-spacing:2px; }
+.header-title { font-family:var(--hd); font-size:16px; font-weight:900; color:var(--white); letter-spacing:4px; text-shadow:0 0 20px rgba(0,229,204,0.5); }
+.live-badge { display:flex; align-items:center; gap:6px; padding:4px 12px; border:1px solid var(--red); border-radius:20px; font-family:var(--mono); font-size:10px; color:var(--red); }
+.live-dot { width:6px; height:6px; background:var(--red); border-radius:50%; animation:blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+#clock { font-family:var(--mono); font-size:12px; color:var(--teal); letter-spacing:2px; }
+
+/* MAIN LAYOUT */
+main {
+  position:relative; z-index:1;
+  padding:1.2rem 1.5rem;
+  display:grid;
+  grid-template-columns:1fr 1fr 1.2fr;
+  grid-template-rows:auto auto auto;
+  gap:1rem;
+}
+
+/* PANEL */
+.panel {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden;
+}
+.panel-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.8rem 1.2rem; border-bottom:1px solid var(--border);
+  background:rgba(0,229,204,0.03);
+}
+.panel-title { font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--teal); }
+.panel-badge { font-family:var(--mono); font-size:8px; padding:2px 8px; border-radius:10px; background:rgba(0,229,204,0.1); color:var(--teal); border:1px solid rgba(0,229,204,0.3); }
+.panel-body  { padding:1rem 1.2rem; }
+
+/* STATUS CARDS */
+.status-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+.status-item {
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:8px; padding:10px; text-align:center;
+}
+.status-label { font-family:var(--mono); font-size:8px; letter-spacing:1px; color:var(--gray); margin-bottom:4px; }
+.status-value { font-family:var(--hd); font-size:18px; font-weight:900; color:var(--teal); text-shadow:0 0 10px rgba(0,229,204,0.5); }
+
+/* SENSOR BARS */
+.sensor-row { margin-bottom:12px; }
+.sensor-label { display:flex; justify-content:space-between; font-family:var(--mono); font-size:9px; color:var(--white); margin-bottom:4px; }
+.sensor-track { height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+.sensor-fill  { height:100%; border-radius:4px; transition:width 0.5s ease, background 0.3s; }
+
+/* DPAD CONTROLLER */
+.dpad-container {
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  margin:1rem 0;
+}
+.dpad-row { display:flex; gap:8px; align-items:center; }
+.dpad-btn {
+  width:56px; height:56px; border-radius:12px;
+  border:1px solid var(--border); background:var(--panel);
+  color:var(--teal); font-size:22px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.1s; font-family:var(--mono);
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+}
+.dpad-btn:hover { background:rgba(0,229,204,0.1); border-color:var(--teal); }
+.dpad-btn:active, .dpad-btn.active {
+  background:rgba(0,229,204,0.2); border-color:var(--teal);
+  box-shadow:0 0 20px rgba(0,229,204,0.4); transform:scale(0.95);
+}
+.dpad-btn.stop-btn {
+  background:rgba(255,45,85,0.1); border-color:var(--red); color:var(--red);
+}
+.dpad-btn.stop-btn:hover { background:rgba(255,45,85,0.2); }
+
+/* SPEED SLIDER */
+.speed-control { margin-top:12px; }
+.speed-label { display:flex; justify-content:space-between; font-family:var(--mono); font-size:9px; color:var(--gray); margin-bottom:6px; }
+input[type=range] {
+  width:100%; height:4px; border-radius:2px;
+  background:var(--border); outline:none; cursor:pointer;
+  -webkit-appearance:none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:16px; height:16px;
+  border-radius:50%; background:var(--teal);
+  box-shadow:0 0 8px rgba(0,229,204,0.6); cursor:pointer;
+}
+
+/* COMMAND STATUS */
+.cmd-status {
+  margin-top:10px; padding:8px 12px; border-radius:8px;
+  font-family:var(--mono); font-size:10px; letter-spacing:1px;
+  background:rgba(0,229,204,0.05); border:1px solid rgba(0,229,204,0.2);
+  color:var(--teal); text-align:center; min-height:36px;
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.3s;
+}
+.cmd-status.blocked {
+  background:rgba(255,45,85,0.1); border-color:var(--red); color:var(--red);
+}
+.cmd-status.executed {
+  background:rgba(48,209,88,0.1); border-color:var(--green); color:var(--green);
+}
+
+/* ATTACK BUTTONS */
+.attack-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.attack-btn {
+  padding:10px 8px; border-radius:10px; border:1px solid var(--border);
+  background:var(--panel); color:var(--white); font-family:var(--mono);
+  font-size:9px; letter-spacing:1px; cursor:pointer; text-align:center;
+  transition:all 0.2s;
+}
+.attack-btn:hover { border-color:var(--red); background:rgba(255,45,85,0.1); color:var(--red); }
+.attack-btn.active { border-color:var(--red); background:rgba(255,45,85,0.2); color:var(--red); animation:pulse 0.5s; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(0.97)} }
+.attack-icon { font-size:18px; display:block; margin-bottom:4px; }
+
+/* EVENT LOG */
+.event-log { max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+.event-item {
+  padding:6px 10px; border-radius:6px; font-family:var(--mono); font-size:9px;
+  display:flex; align-items:flex-start; gap:8px; animation:slide-in 0.3s ease;
+}
+@keyframes slide-in { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:none} }
+.event-item.blocked { background:rgba(255,45,85,0.08); border:1px solid rgba(255,45,85,0.2); }
+.event-item.allowed { background:rgba(48,209,88,0.05); border:1px solid rgba(48,209,88,0.15); }
+.event-icon { font-size:12px; flex-shrink:0; }
+.event-text { flex:1; }
+.event-type { color:var(--red); font-size:9px; letter-spacing:1px; }
+.event-type.ok { color:var(--green); }
+.event-detail { color:var(--gray); font-size:8px; margin-top:2px; }
+.event-time   { color:var(--gray); font-size:8px; flex-shrink:0; }
+
+/* ARCHITECTURE */
+.arch-flow {
+  display:flex; flex-direction:column; gap:6px;
+}
+.arch-step {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 12px; background:var(--panel);
+  border:1px solid var(--border); border-radius:8px;
+  position:relative;
+}
+.arch-icon { font-size:18px; flex-shrink:0; }
+.arch-label { font-family:var(--mono); font-size:9px; letter-spacing:1px; color:var(--white); }
+.arch-sub   { font-size:8px; color:var(--gray); margin-top:2px; }
+.arch-arrow { text-align:center; color:var(--teal); font-size:14px; margin:-2px 0; }
+.arch-check { margin-left:auto; font-size:11px; }
+
+/* STAT ROW */
+.mini-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; grid-column:1/-1; }
+.mini-stat {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:10px; padding:10px; text-align:center;
+  position:relative; overflow:hidden;
+}
+.mini-stat::before {
+  content:''; position:absolute; top:0; left:0; right:0;
+  height:2px; background:var(--accent,var(--teal));
+}
+.mini-stat-label { font-family:var(--mono); font-size:8px; letter-spacing:1px; color:var(--gray); margin-bottom:4px; }
+.mini-stat-value { font-family:var(--hd); font-size:22px; font-weight:900; color:var(--accent,var(--teal)); }
+
+/* STATUS BAR */
+.status-bar {
+  grid-column:1/-1; display:flex; align-items:center; justify-content:space-between;
+  padding:0.6rem 1.2rem; background:var(--panel);
+  border:1px solid var(--border); border-radius:10px;
+  font-family:var(--mono); font-size:9px; color:var(--gray);
+}
+.dot { width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); display:inline-block; margin-right:6px; }
+.dot.red { background:var(--red); box-shadow:0 0 6px var(--red); }
+
+::-webkit-scrollbar { width:3px; }
+::-webkit-scrollbar-track { background:var(--panel); }
+::-webkit-scrollbar-thumb { background:var(--teal); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🚗</div>
+    <div>
+      <div class="logo-text">AV SECURITY</div>
+      <div class="logo-sub">CYBER-PHYSICAL SYSTEM</div>
+    </div>
+  </div>
+  <div class="header-title">AUTONOMOUS VEHICLE CONTROL CENTER</div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- MINI STATS ROW -->
+  <div class="mini-stats">
+    <div class="mini-stat" style="--accent:var(--teal)">
+      <div class="mini-stat-label">TOTAL COMMANDS</div>
+      <div class="mini-stat-value" id="stat-total">0</div>
+    </div>
+    <div class="mini-stat" style="--accent:var(--red)">
+      <div class="mini-stat-label">ATTACKS BLOCKED</div>
+      <div class="mini-stat-value" id="stat-attacks">0</div>
+    </div>
+    <div class="mini-stat" style="--accent:var(--green)">
+      <div class="mini-stat-label">EXECUTED SAFELY</div>
+      <div class="mini-stat-value" id="stat-safe">0</div>
+    </div>
+    <div class="mini-stat" style="--accent:var(--yellow)">
+      <div class="mini-stat-label">ESP32 STATUS</div>
+      <div class="mini-stat-value" id="stat-esp" style="font-size:14px;margin-top:4px">ONLINE</div>
+    </div>
+  </div>
+
+  <!-- COL 1: VEHICLE STATUS + CONTROLLER -->
+  <div style="display:flex;flex-direction:column;gap:1rem">
+
+    <!-- Vehicle Status -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">🚗 VEHICLE STATUS</span>
+        <span class="panel-badge" id="current-cmd">STOP</span>
+      </div>
+      <div class="panel-body">
+        <div class="status-grid">
+          <div class="status-item">
+            <div class="status-label">FRONT SENSOR</div>
+            <div class="status-value" id="front-dist">--</div>
+            <div style="font-size:8px;color:var(--gray);font-family:var(--mono)">cm</div>
+          </div>
+          <div class="status-item">
+            <div class="status-label">REAR SENSOR</div>
+            <div class="status-value" id="rear-dist">--</div>
+            <div style="font-size:8px;color:var(--gray);font-family:var(--mono)">cm</div>
+          </div>
+        </div>
+
+        <div class="sensor-row">
+          <div class="sensor-label">
+            <span>FRONT CLEARANCE</span>
+            <span id="front-pct">--</span>
+          </div>
+          <div class="sensor-track">
+            <div class="sensor-fill" id="front-bar" style="width:80%;background:var(--green)"></div>
+          </div>
+        </div>
+        <div class="sensor-row">
+          <div class="sensor-label">
+            <span>REAR CLEARANCE</span>
+            <span id="rear-pct">--</span>
+          </div>
+          <div class="sensor-track">
+            <div class="sensor-fill" id="rear-bar" style="width:80%;background:var(--blue)"></div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-family:var(--mono);font-size:8px;color:var(--gray)">ATTACK DETECTED</div>
+            <div id="attack-status" style="font-family:var(--hd);font-size:13px;color:var(--green);margin-top:4px">NO</div>
+          </div>
+          <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-family:var(--mono);font-size:8px;color:var(--gray)">LAST ATTACK</div>
+            <div id="last-attack" style="font-family:var(--mono);font-size:9px;color:var(--red);margin-top:4px">None</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- D-Pad Controller -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">🎮 VEHICLE CONTROLLER</span>
+        <span class="panel-badge">MOBILE APP</span>
+      </div>
+      <div class="panel-body">
+        <div class="dpad-container">
+          <div class="dpad-row">
+            <div style="width:56px"></div>
+            <button class="dpad-btn" id="btn-forward" onclick="sendCommand('FORWARD')">▲</button>
+            <div style="width:56px"></div>
+          </div>
+          <div class="dpad-row">
+            <button class="dpad-btn" onclick="sendCommand('LEFT')">◄</button>
+            <button class="dpad-btn stop-btn" onclick="sendCommand('STOP')">■</button>
+            <button class="dpad-btn" onclick="sendCommand('RIGHT')">►</button>
+          </div>
+          <div class="dpad-row">
+            <div style="width:56px"></div>
+            <button class="dpad-btn" onclick="sendCommand('BACKWARD')">▼</button>
+            <div style="width:56px"></div>
+          </div>
+        </div>
+
+        <div class="speed-control">
+          <div class="speed-label">
+            <span>SPEED</span>
+            <span id="speed-val" style="color:var(--teal)">150</span>
+          </div>
+          <input type="range" id="speed-slider" min="50" max="255" value="150"
+                 oninput="document.getElementById('speed-val').textContent=this.value">
+        </div>
+
+        <div class="cmd-status" id="cmd-status">READY — Send a command</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COL 2: ATTACK SIMULATOR -->
+  <div style="display:flex;flex-direction:column;gap:1rem">
+
+    <!-- Attack Simulator -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">☠️ ATTACK SIMULATOR</span>
+        <span class="panel-badge">DEMO TOOL</span>
+      </div>
+      <div class="panel-body">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--gray);margin-bottom:10px;line-height:1.6">
+          Simulate cyberattacks to demonstrate detection system
+        </div>
+        <div class="attack-grid">
+          <button class="attack-btn" onclick="simulateAttack('invalid_command')">
+            <span class="attack-icon">💀</span>
+            INVALID<br>COMMAND
+          </button>
+          <button class="attack-btn" onclick="simulateAttack('replay')">
+            <span class="attack-icon">🔄</span>
+            REPLAY<br>ATTACK
+          </button>
+          <button class="attack-btn" onclick="simulateAttack('speed_overflow')">
+            <span class="attack-icon">⚡</span>
+            SPEED<br>OVERFLOW
+          </button>
+          <button class="attack-btn" onclick="simulateAttack('no_auth')">
+            <span class="attack-icon">🔑</span>
+            NO AUTH<br>TOKEN
+          </button>
+          <button class="attack-btn" onclick="simulateAttack('behavioral')" style="grid-column:1/-1">
+            <span class="attack-icon">🧠</span>
+            BEHAVIORAL PATTERN ATTACK — Rapid Direction Changes
+          </button>
+        </div>
+
+        <div style="margin-top:12px;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:8px">
+          <div style="font-family:var(--mono);font-size:8px;color:var(--gray);margin-bottom:6px">ATTACK RESULT</div>
+          <div id="attack-result" style="font-family:var(--mono);font-size:9px;color:var(--teal);line-height:1.5">
+            Click an attack button to simulate...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Architecture Flow -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">⚙️ SYSTEM ARCHITECTURE</span>
+        <span class="panel-badge">FLOW</span>
+      </div>
+      <div class="panel-body">
+        <div class="arch-flow">
+          <div class="arch-step">
+            <div class="arch-icon">📱</div>
+            <div>
+              <div class="arch-label">MOBILE APP / THIS PAGE</div>
+              <div class="arch-sub">Sends command + token via WiFi</div>
+            </div>
+            <div class="arch-check">↓</div>
+          </div>
+          <div class="arch-arrow">↓</div>
+          <div class="arch-step">
+            <div class="arch-icon">🔐</div>
+            <div>
+              <div class="arch-label">FLASK BRIDGE</div>
+              <div class="arch-sub">Auth check + Kafka publish</div>
+            </div>
+            <div class="arch-check" style="color:var(--teal)">✓</div>
+          </div>
+          <div class="arch-arrow">↓</div>
+          <div class="arch-step" style="border-color:var(--teal)">
+            <div class="arch-icon">📡</div>
+            <div>
+              <div class="arch-label">ESP32 VALIDATOR</div>
+              <div class="arch-sub">5-layer security checks</div>
+            </div>
+            <div class="arch-check" style="color:var(--teal)">🛡️</div>
+          </div>
+          <div class="arch-arrow">↓</div>
+          <div class="arch-step">
+            <div class="arch-icon">🚗</div>
+            <div>
+              <div class="arch-label">MOTORS + SENSORS</div>
+              <div class="arch-sub">Execute safe commands only</div>
+            </div>
+            <div class="arch-check" style="color:var(--green)">✅</div>
+          </div>
+          <div class="arch-arrow">↓</div>
+          <div class="arch-step">
+            <div class="arch-icon">📊</div>
+            <div>
+              <div class="arch-label">KAFKA → POSTGRESQL</div>
+              <div class="arch-sub">All events encrypted + stored</div>
+            </div>
+            <div class="arch-check" style="color:var(--teal)">🔒</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COL 3: EVENT LOG -->
+  <div style="display:flex;flex-direction:column;gap:1rem">
+
+    <div class="panel" style="flex:1">
+      <div class="panel-header">
+        <span class="panel-title">🔴 REAL-TIME SECURITY LOG</span>
+        <span class="panel-badge" id="event-count">0 events</span>
+      </div>
+      <div class="panel-body" style="padding:0.8rem">
+        <div class="event-log" id="event-log">
+          <div style="text-align:center;padding:2rem;color:var(--gray);font-family:var(--mono);font-size:10px">
+            Waiting for events...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Security Checks Explanation -->
+    <div class="panel">
+      <div class="panel-header">
